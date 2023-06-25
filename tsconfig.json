@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+  
+    "target": "es2016",                               
+   
+    "module": "es6",                                
+       "outDir": "./dist",
+
+    "esModuleInterop": true,                            
+            
+    "forceConsistentCasingInFileNames": true,          
+
+"allowSyntheticDefaultImports": true,
+
+    "strict": true,            
+  }}
