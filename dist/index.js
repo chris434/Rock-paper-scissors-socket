@@ -5,7 +5,7 @@ import { v4 as uuid } from 'uuid';
 const PORT = process.env.PORT || 4000
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, { cors: { origin: 'https://rock-paper-scissors-front-end-syog.vercel.app/' } });
 const userNames = new Set();
 const games = new Map();
 const moves = [
