@@ -2,10 +2,9 @@ import http from 'http';
 import express from 'express';
 import { Server } from 'socket.io';
 import { v4 as uuid } from 'uuid';
-const PORT = process.env.PORT || 4000
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: 'https://rock-paper-scissors-front-end-syog.vercel.app/' } });
+const io = new Server(server, { cors: { origin: '*' } });
 const userNames = new Set();
 const games = new Map();
 const moves = [
@@ -112,7 +111,6 @@ io.on('connection', (socket) => {
         games.delete(gameId);
         userNames.delete(username);
     });
-
     function play(gameId, userId) {
         const game = games.get(gameId);
         const { users } = game;
@@ -135,7 +133,6 @@ io.on('connection', (socket) => {
             });
         }
     }
-
     function setGameData(currentUser, opponentUser, game, gameId, users, winnerId) {
         const newUsers = users.map(user => {
             if (user.id === winnerId) {
@@ -155,6 +152,6 @@ io.on('connection', (socket) => {
             games.delete(gameId);
     }
 });
-server.listen(PORT, () => {
+server.listen(8000, () => {
     console.log('server listening on port 8000');
 });
