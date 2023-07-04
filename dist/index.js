@@ -63,7 +63,8 @@ io.on('connection', (socket) => {
             const { users } = game;
             users.forEach(user => {
                 if (user.id !== userId)
-                    socket.to(user.id).emit('game-data', Object.assign(Object.assign({}, game), { hasMadeMove: true, clientId: socket.id }));
+                    return socket.to(user.id).emit('game-data', Object.assign(Object.assign({}, game), { opponentHasMadeMove: true, clientId: socket.id }));
+                socket.emit('game-data', Object.assign(Object.assign({}, game), { currentUserHasMadeMove: true, clientId: socket.id }));
             });
             const newUsers = users.map(user => {
                 if (user.id === userId)
@@ -73,24 +74,6 @@ io.on('connection', (socket) => {
             games.set(gameId, Object.assign(Object.assign({}, game), { users: newUsers }));
             play(gameId, userId);
         }
-    });
-    socket.on('new-round', () => {
-        var _a, _b;
-        const gameId = (_b = (_a = socket.data) === null || _a === void 0 ? void 0 : _a.user) === null || _b === void 0 ? void 0 : _b.gameId;
-        const userId = socket.id;
-        const game = games.get(gameId);
-        if (!game)
-            return;
-        const { users } = game;
-        const opponentUser = users.find(user => user.id !== userId);
-        const resetUsers = users.map(user => {
-            return Object.assign(Object.assign({}, user), { winner: false, move: '' });
-        });
-        const resetGame = Object.assign(Object.assign({}, game), { allPlayed: false, gamePlayed: false, winner: '', users: resetUsers, hasMadeMove: false });
-        games.set(gameId, resetGame);
-        console.log(resetGame);
-        socket.to(opponentUser === null || opponentUser === void 0 ? void 0 : opponentUser.id).emit('game-data', Object.assign(Object.assign({}, resetGame), { clientId: opponentUser === null || opponentUser === void 0 ? void 0 : opponentUser.id }));
-        socket.emit('game-data', Object.assign(Object.assign({}, resetGame), { clientId: userId }));
     });
     socket.on("disconnect", () => {
         var _a, _b, _c, _d;
@@ -115,13 +98,13 @@ io.on('connection', (socket) => {
         const game = games.get(gameId);
         const { users } = game;
         const allPayed = users.every((user => user.move));
-        console.log(users);
         if (allPayed) {
             const currentUser = users.find(user => user.id === userId);
             const opponentUser = users.find(user => user.id !== userId);
             if ((currentUser === null || currentUser === void 0 ? void 0 : currentUser.move) === (opponentUser === null || opponentUser === void 0 ? void 0 : opponentUser.move)) {
-                socket.to(opponentUser === null || opponentUser === void 0 ? void 0 : opponentUser.id).emit('game-data', Object.assign(Object.assign({}, game), { clientId: opponentUser === null || opponentUser === void 0 ? void 0 : opponentUser.id, hasMadeMove: true, gamePlayed: true, winner: 'draw', allPlayed: true }));
-                return socket.emit('game-data', Object.assign(Object.assign({}, game), { clientId: currentUser === null || currentUser === void 0 ? void 0 : currentUser.id, hasMadeMove: true, gamePlayed: true, winner: 'draw', allPlayed: true }));
+                socket.to(opponentUser === null || opponentUser === void 0 ? void 0 : opponentUser.id).emit('game-data', Object.assign(Object.assign({}, game), { clientId: opponentUser === null || opponentUser === void 0 ? void 0 : opponentUser.id, gamePlayed: true, winner: 'draw', allPlayed: true }));
+                socket.emit('game-data', Object.assign(Object.assign({}, game), { clientId: currentUser === null || currentUser === void 0 ? void 0 : currentUser.id, gamePlayed: true, winner: 'draw', allPlayed: true }));
+                return resetRound();
             }
             moves.forEach(move => {
                 if (move[0] === (currentUser === null || currentUser === void 0 ? void 0 : currentUser.move) && move[1] === (opponentUser === null || opponentUser === void 0 ? void 0 : opponentUser.move)) {
@@ -131,6 +114,7 @@ io.on('connection', (socket) => {
                     setGameData(currentUser, opponentUser, game, gameId, users, opponentUser.id);
                 }
             });
+            resetRound();
         }
     }
     function setGameData(currentUser, opponentUser, game, gameId, users, winnerId) {
@@ -146,10 +130,30 @@ io.on('connection', (socket) => {
         }
         const newGame = Object.assign(Object.assign({}, game), { winner: winnerId === currentUser.id ? 'you' : opponentUser.name, gameOver, users: newUsers });
         games.set(gameId, newGame);
-        socket.to(opponentUser.id).emit('game-data', Object.assign(Object.assign({}, newGame), { allPlayed: true, clientId: opponentUser.id, gamePlayed: true, hasMadeMove: true }));
-        socket.emit('game-data', Object.assign(Object.assign({}, newGame), { allPlayed: true, clientId: currentUser.id, gamePlayed: true, hasMadeMove: true }));
+        socket.to(opponentUser.id).emit('game-data', Object.assign(Object.assign({}, newGame), { allPlayed: true, clientId: opponentUser.id, gamePlayed: true }));
+        socket.emit('game-data', Object.assign(Object.assign({}, newGame), { allPlayed: true, clientId: currentUser.id, gamePlayed: true }));
         if (gameOver)
             games.delete(gameId);
+    }
+    function resetRound() {
+        setTimeout(() => {
+            var _a, _b;
+            const gameId = (_b = (_a = socket.data) === null || _a === void 0 ? void 0 : _a.user) === null || _b === void 0 ? void 0 : _b.gameId;
+            const userId = socket.id;
+            const game = games.get(gameId);
+            if (!game)
+                return;
+            const { users } = game;
+            const opponentUser = users.find(user => user.id !== userId);
+            const resetUsers = users.map(user => {
+                return Object.assign(Object.assign({}, user), { winner: false, move: '' });
+            });
+            const resetGame = Object.assign(Object.assign({}, game), { allPlayed: false, gamePlayed: false, winner: '', users: resetUsers });
+            games.set(gameId, resetGame);
+            console.log(resetGame);
+            socket.to(opponentUser === null || opponentUser === void 0 ? void 0 : opponentUser.id).emit('game-data', Object.assign(Object.assign({}, resetGame), { clientId: opponentUser === null || opponentUser === void 0 ? void 0 : opponentUser.id }));
+            socket.emit('game-data', Object.assign(Object.assign({}, resetGame), { clientId: userId }));
+        }, 3000);
     }
 });
 server.listen(8000, () => {

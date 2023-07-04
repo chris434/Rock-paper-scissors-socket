@@ -91,7 +91,8 @@ io.on('connection', (socket:any) => {
         
     
             users.forEach(user => {
-                if (user.id !== userId) socket.to(user.id).emit('game-data', {...game, hasMadeMove: true,clientId:socket.id })
+                if (user.id !== userId) return socket.to(user.id).emit('game-data', { ...game, opponentHasMadeMove: true, clientId: socket.id })
+                socket.emit('game-data', { ...game, currentUserHasMadeMove: true, clientId: socket.id })
             })
       
         
@@ -106,26 +107,6 @@ io.on('connection', (socket:any) => {
         
         
         } 
-    })
-
-    socket.on('new-round', () => {
-
-        const gameId = socket.data?.user?.gameId
-        const userId = socket.id
-        const game = games.get(gameId);
-
-        if(!game)return
-        const { users }: { users: userType[] } = game
-        const opponentUser = users.find(user => user.id !== userId)
-        
-        const resetUsers = users.map(user => {
-            return {...user,winner:false,move:''}
-        })
-        const resetGame = { ...game,allPlayed:false, gamePlayed: false, winner: '',users:resetUsers,hasMadeMove: false }
-        games.set(gameId, resetGame)
-        console.log(resetGame)
-        socket.to(opponentUser?.id).emit('game-data', {...resetGame ,clientId:opponentUser?.id })
-        socket.emit('game-data', {...resetGame,clientId:userId })
     })
 
    socket.on("disconnect", () => {
@@ -155,14 +136,14 @@ io.on('connection', (socket:any) => {
         const game = games.get(gameId);
          const { users }: { users: userType[] } = game
          const allPayed = users.every((user => user.move))
-console.log(users)
         if (allPayed) {
             const currentUser =users.find(user => user.id === userId)
             const opponentUser = users.find(user => user.id !== userId)
             
             if (currentUser?.move === opponentUser?.move) {
-                socket.to(opponentUser?.id).emit('game-data',{...game,clientId:opponentUser?.id,hasMadeMove: true,gamePlayed:true,winner:'draw',allPlayed:true,})
-                return socket.emit('game-data',{...game,clientId:currentUser?.id,hasMadeMove: true,gamePlayed:true,winner:'draw',allPlayed:true,})
+                socket.to(opponentUser?.id).emit('game-data',{...game,clientId:opponentUser?.id,gamePlayed:true,winner:'draw',allPlayed:true,})
+                socket.emit('game-data', { ...game, clientId: currentUser?.id, gamePlayed: true, winner: 'draw', allPlayed: true, })
+                return resetRound()
             }
 
             moves.forEach(move => {
@@ -175,7 +156,8 @@ console.log(users)
                 }
                 
             })
-        }
+               resetRound()
+            }
     }
     function setGameData(currentUser: userType, opponentUser: userType, game: object, gameId: string, users: userType[], winnerId: string) {
 
@@ -193,11 +175,33 @@ console.log(users)
                      const newGame= {...game,winner:winnerId===currentUser.id?'you': opponentUser.name,gameOver, users:newUsers}
         games.set(gameId, newGame)
 
-        socket.to(opponentUser.id).emit('game-data', { ...newGame,allPlayed:true, clientId: opponentUser.id,gamePlayed:true,hasMadeMove: true })
-        socket.emit('game-data',{...newGame,allPlayed:true,clientId:currentUser.id,gamePlayed:true,hasMadeMove: true} )
+        socket.to(opponentUser.id).emit('game-data', { ...newGame,allPlayed:true, clientId: opponentUser.id,gamePlayed:true})
+        socket.emit('game-data',{...newGame,allPlayed:true,clientId:currentUser.id,gamePlayed:true} )
     
     if(gameOver) games.delete(gameId)
     
+    }
+
+    function resetRound() {
+        setTimeout(() => {
+        const gameId = socket.data?.user?.gameId
+        const userId = socket.id
+        const game = games.get(gameId);
+
+        if(!game)return
+        const { users }: { users: userType[] } = game
+        const opponentUser = users.find(user => user.id !== userId)
+        
+        const resetUsers = users.map(user => {
+            return {...user,winner:false,move:''}
+        })
+        const resetGame = { ...game,allPlayed:false, gamePlayed: false, winner: '',users:resetUsers }
+        games.set(gameId, resetGame)
+        console.log(resetGame)
+        socket.to(opponentUser?.id).emit('game-data', {...resetGame ,clientId:opponentUser?.id })
+        socket.emit('game-data', {...resetGame,clientId:userId }) 
+        },3000 )
+      
     }
 })
 
